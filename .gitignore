@@ -1,2 +1,5 @@
 misc/
 logs/
+.asetup*
+*.xml
+*.json
