@@ -1,1 +1,1 @@
-  done processing event #73915789, run #410000 69901 events read so far  <<<===
+  done processing event #690207147, run #348885 38801 events read so far  <<<===

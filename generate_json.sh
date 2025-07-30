@@ -10,38 +10,42 @@ CYAN='\033[1;36m'
 NC='\033[0m' # No Color
 
 # ----------- Argument Parsing -----------
-if [ "$#" -ne 1 ]; then
-    echo -e "${RED}❌ Usage: $0 <defaultLevel>${NC}"
+if [ "$#" -lt 1 ]; then
+    echo -e "${RED}❌ Usage: $0 <defaultLevel> [<highMantissaBits=7> <lowMantissaBits=15>]${NC}"
     exit 1
 fi
 
 DEFAULT_LEVEL=$1
+HIGH_BITS=${2:-7}  # Default to 7 if not provided
+LOW_BITS=${3:-15}  # Default to 15 if not provided
 LEVEL_TAG="dl${DEFAULT_LEVEL}"  # e.g., dl10
 
 echo -e "${CYAN}Using defaultLevel = ${DEFAULT_LEVEL}${NC}"
+echo -e "${CYAN}Using highMantissaBits = ${HIGH_BITS}${NC}"
+echo -e "${CYAN}Using lowMantissaBits = ${LOW_BITS}${NC}"
 echo
 
 # ----------- Ensure required directories exist -----------
-mkdir -p /eos/user/y/yolanney/json_files/real
-mkdir -p /eos/user/y/yolanney/json_files/sim
-mkdir -p /eos/user/y/yolanney/compressed_files/real
-mkdir -p /eos/user/y/yolanney/compressed_files/sim
-mkdir -p logs
+mkdir -p /eos/user/y/yolanney/json_test/real
+mkdir -p /eos/user/y/yolanney/json_test/sim
+mkdir -p /eos/user/y/yolanney/compressed_test/real
+mkdir -p /eos/user/y/yolanney/compressed_test/sim
+mkdir -p logs_testing
 
 # ----------- Input Files -----------
 REAL_FILES=(
 "/cvmfs/atlas-nightlies.cern.ch/repo/data/data-art/ASG/DAOD_PHYSLITE/p6479/data18_13TeV.00348885.physics_Main.deriv.DAOD_PHYSLITE.r13286_p4910_p6479/DAOD_PHYSLITE.41578717._000256.pool.root.1"
-"/cvmfs/atlas-nightlies.cern.ch/repo/data/data-art/ASG/DAOD_PHYSLITE/p6482/data23_13p6TeV.00456749.physics_Main.deriv.DAOD_PHYSLITE.r15774_p6304_p6482/DAOD_PHYSLITE.41588921._000002.pool.root.1"
+# "/cvmfs/atlas-nightlies.cern.ch/repo/data/data-art/ASG/DAOD_PHYSLITE/p6482/data23_13p6TeV.00456749.physics_Main.deriv.DAOD_PHYSLITE.r15774_p6304_p6482/DAOD_PHYSLITE.41588921._000002.pool.root.1"
 )
 
 SIM_FILES=(
-"/cvmfs/atlas-nightlies.cern.ch/repo/data/data-art/ASG/DAOD_PHYSLITE/p6490/mc20_13TeV.410470.PhPy8EG_A14_ttbar_hdamp258p75_nonallhad.deriv.DAOD_PHYSLITE.e6337_s3681_r13167_r13146_p6490/DAOD_PHYSLITE.41651753._000007.pool.root.1"
-"/cvmfs/atlas-nightlies.cern.ch/repo/data/data-art/ASG/DAOD_PHYSLITE/p6491/mc23_13p6TeV.601229.PhPy8EG_A14_ttbar_hdamp258p75_SingleLep.deriv.DAOD_PHYSLITE.e8514_e8528_s4162_s4114_r15540_r15516_p6491/DAOD_PHYSLITE.41633384._000941.pool.root.1"
+# "/cvmfs/atlas-nightlies.cern.ch/repo/data/data-art/ASG/DAOD_PHYSLITE/p6490/mc20_13TeV.410470.PhPy8EG_A14_ttbar_hdamp258p75_nonallhad.deriv.DAOD_PHYSLITE.e6337_s3681_r13167_r13146_p6490/DAOD_PHYSLITE.41651753._000007.pool.root.1"
+# "/cvmfs/atlas-nightlies.cern.ch/repo/data/data-art/ASG/DAOD_PHYSLITE/p6491/mc23_13p6TeV.601229.PhPy8EG_A14_ttbar_hdamp258p75_SingleLep.deriv.DAOD_PHYSLITE.e8514_e8528_s4162_s4114_r15540_r15516_p6491/DAOD_PHYSLITE.41633384._000941.pool.root.1"
 )
 
 # ----------- Output base directories -----------
-JSON_BASE="/eos/user/y/yolanney/json_files"
-COMPRESSED_BASE="/eos/user/y/yolanney/compressed_files"
+JSON_BASE="/eos/user/y/yolanney/json_test"
+COMPRESSED_BASE="/eos/user/y/yolanney/compressed_test"
 
 # ----------- Process each file -----------
 process_file() {
@@ -53,8 +57,8 @@ process_file() {
 
     json_path="${JSON_BASE}/${category}/${filename_noext}_${LEVEL_TAG}.json"
     compressed_path="${COMPRESSED_BASE}/${category}/${filename_noext}_${LEVEL_TAG}_compressed.root"
-    log_path="logs/${filename_noext}_${LEVEL_TAG}_compression.log"
-    json_log_path="logs/${filename_noext}_${LEVEL_TAG}_json.log"
+    log_path="logs_testing/${filename_noext}_${LEVEL_TAG}_compression.log"
+    json_log_path="logs_testing/${filename_noext}_${LEVEL_TAG}_json.log"
 
     echo -e "${CYAN}📄 Processing: $filename ($category)${NC}"
 
@@ -88,8 +92,8 @@ process_file() {
             --inputFiles "$input_file" \
             --outputFile "$compressed_path" \
             --compressionConfig "$json_path" \
-            --highMantissaBits 7 \
-            --lowMantissaBits 15 \
+            --highMantissaBits "$HIGH_BITS" \
+            --lowMantissaBits "$LOW_BITS" \
             > "$log_path" 2>&1
 
         if [[ $? -eq 0 ]]; then
