@@ -2,25 +2,58 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+
 class ConvAutoencoder1D(nn.Module):
     def __init__(self):
         super().__init__()
         self.encoder = nn.Sequential(
-            nn.Conv1d(1, 16, kernel_size=3, stride=2, padding=1),  # (B, 16, 500)
+            nn.Conv1d(1, 16, 3, stride=2, padding=1),
             nn.ReLU(),
-            nn.Conv1d(16, 32, kernel_size=3, stride=2, padding=1), # (B, 32, 250)
+            nn.Conv1d(16, 32, 3, stride=2, padding=1),
             nn.ReLU(),
         )
         self.decoder = nn.Sequential(
-            nn.ConvTranspose1d(32, 16, kernel_size=4, stride=2, padding=1), # (B, 16, 500)
+            nn.ConvTranspose1d(32, 16, 4, stride=2, padding=1),
             nn.ReLU(),
-            nn.ConvTranspose1d(16, 1, kernel_size=4, stride=2, padding=1),   # (B, 1, 1000)
+            nn.ConvTranspose1d(16, 1, 4, stride=2, padding=1),
         )
 
     def forward(self, x):
+        orig_len = x.size(-1)
+        
+        # pad right so it's divisible by 4 (total downsampling factor)
+        factor = 4
+        pad_len = (factor - orig_len % factor) % factor
+        if pad_len > 0:
+            x = F.pad(x, (0, pad_len))
+
         z = self.encoder(x)
         out = self.decoder(z)
+
+        # crop back to original length
+        out = out[..., :orig_len]
         return out
+
+
+# class ConvAutoencoder1D(nn.Module):
+#     def __init__(self):
+#         super().__init__()
+#         self.encoder = nn.Sequential(
+#             nn.Conv1d(1, 16, kernel_size=3, stride=2, padding=1),  # (B, 16, 500)
+#             nn.ReLU(),
+#             nn.Conv1d(16, 32, kernel_size=3, stride=2, padding=1), # (B, 32, 250)
+#             nn.ReLU(),
+#         )
+#         self.decoder = nn.Sequential(
+#             nn.ConvTranspose1d(32, 16, kernel_size=4, stride=2, padding=1), # (B, 16, 500)
+#             nn.ReLU(),
+#             nn.ConvTranspose1d(16, 1, kernel_size=4, stride=2, padding=1),   # (B, 1, 1000)
+#         )
+
+#     def forward(self, x):
+#         z = self.encoder(x)
+#         out = self.decoder(z)
+#         return out
 
 
 class Autoencoder1D(nn.Module):

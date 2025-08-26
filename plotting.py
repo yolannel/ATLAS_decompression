@@ -7,6 +7,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.signal import find_peaks
 import awkward as ak
+from pathlib import Path
 
 def load_and_preprocess_data(tree_orig, tree_comp, variables, branch_prefix):
     """Load and preprocess data from ROOT trees."""
@@ -30,7 +31,7 @@ def load_and_preprocess_data(tree_orig, tree_comp, variables, branch_prefix):
         
     return original_data, compressed_data, abs_diffs, signed_diffs
 
-def plot_histogram(data, varnames=(), log=True, n_bins=100):
+def plot_histogram(data, varnames=(), log=True, n_bins=100, save_path=None):
     """
     Plot histogram(s) of data with optional log scaling.
     
@@ -90,10 +91,14 @@ def plot_histogram(data, varnames=(), log=True, n_bins=100):
         
     plt.grid(True, which='both', linestyle='--', linewidth=0.5)
     plt.tight_layout()
-    plt.savefig("histogram_output.png")
-    plt.show()
+    if save_path is not None:
+        plt.savefig(Path(save_path) / "histogram_output.png")
+        print(f"Histogram saved to {Path(save_path) / 'histogram_output.png'}")
+        plt.close()
+    else:
+        plt.show()
 
-def plot_absolute_differences(abs_diffs, variables, colors):
+def plot_absolute_differences(abs_diffs, variables, colors, save_path=None):
     """Plot absolute differences with peak detection."""
     plt.figure(figsize=(10, 6))
     log_peak_positions = {}
@@ -126,8 +131,12 @@ def plot_absolute_differences(abs_diffs, variables, colors):
     plt.legend()
     plt.grid(True, which='both', linestyle='--', linewidth=0.5)
     plt.tight_layout()
-    plt.show()
-    
+    if save_path is not None:
+        plt.savefig(Path(save_path) / "absolute_differences.png")
+        print(f"Absolute differences plot saved to {Path(save_path) / 'absolute_differences.png'}")
+        plt.close()
+    else:
+        plt.show()
     return log_peak_positions
 
 def analyze_peak_spacing(log_peaks_dict):
@@ -162,7 +171,7 @@ def analyze_peak_spacing(log_peaks_dict):
         
     return global_mean, global_std
 
-def plot_signed_differences_hist(signed_diffs, variables, colors, thr=1e-5):
+def plot_signed_differences_hist(signed_diffs, variables, colors, thr=1e-5, save_path=None):
     """Plot signed differences using symlog scale."""
     all_signed = np.concatenate([signed_diffs[var] for var in variables])
     all_signed = all_signed[np.isfinite(all_signed)]
@@ -184,9 +193,14 @@ def plot_signed_differences_hist(signed_diffs, variables, colors, thr=1e-5):
     plt.grid(True, which='both', linestyle='--', linewidth=0.5)
     plt.legend()
     plt.tight_layout()
-    plt.show()
+    if save_path is not None:
+        plt.savefig(Path(save_path) / "signed_differences_hist.png")
+        print(f"Signed differences histogram saved to {Path(save_path) / 'signed_differences_hist.png'}")
+        plt.close()
+    else:
+        plt.show()
 
-def plot_signed_vs_original(original_data, compressed_data, variables, colors):
+def plot_signed_vs_original(original_data, compressed_data, variables, colors, save_path=None):
     """Scatter plot of signed differences vs original values."""
     plt.figure(figsize=(10, 6))
     for var, label in variables.items():
@@ -201,9 +215,14 @@ def plot_signed_vs_original(original_data, compressed_data, variables, colors):
     plt.legend()
     plt.grid(True, which='both', linestyle='--', linewidth=0.5)
     plt.tight_layout()
-    plt.show()
+    if save_path is not None:
+        plt.savefig(Path(save_path) / "signed_vs_original.png")
+        print(f"Signed vs original plot saved to {Path(save_path) / 'signed_vs_original.png'}")
+        plt.close()
+    else:
+        plt.show()
 
-def plot_large_differences_hist(signed_diffs, variables, threshold=1e-2, xlim=(-100, 100)):
+def plot_large_differences_hist(signed_diffs, variables, threshold=1e-2, xlim=(-100, 100), save_path=None):
     """Histogram of large signed differences."""
     diff_all = np.concatenate([signed_diffs[v] for v in variables.keys()])
     large_diffs = diff_all[np.abs(diff_all) > threshold]
@@ -215,9 +234,14 @@ def plot_large_differences_hist(signed_diffs, variables, threshold=1e-2, xlim=(-
     plt.ylabel("Frequency")
     plt.xlim(xlim)
     plt.grid(True)
-    plt.show()
+    if save_path is not None:
+        plt.savefig(Path(save_path) / "large_differences_hist.png")
+        print(f"Large differences histogram saved to {Path(save_path) / 'large_differences_hist.png'}")
+        plt.close()
+    else:
+        plt.show()
 
-def plot_log_residual_contour(x_true, x_recon, gmm=None, varname="pt", m=10, offset=0.3):
+def plot_log_residual_contour(x_true, x_recon, gmm=None, varname="pt", m=10, offset=0.3, save_path=None):
     # Calculate residuals and transform to log scale
     residual = x_true - x_recon
     log_x_true = np.log10((x_recon) + 1e-12)
@@ -310,5 +334,9 @@ def plot_log_residual_contour(x_true, x_recon, gmm=None, varname="pt", m=10, off
     ax_right.set_xticks([])
     
     plt.tight_layout()
-    plt.savefig("output.png")
-    plt.show()
+    if save_path is not None:
+        plt.savefig(save_path)
+        print(f"Log residual contour plot saved to {save_path}")
+        plt.close()
+    else:
+        plt.show()
