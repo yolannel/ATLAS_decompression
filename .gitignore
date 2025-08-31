@@ -1,5 +1,6 @@
 misc/
 logs/
+tmp/
 .asetup*
 *.xml
 *.json

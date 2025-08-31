@@ -158,6 +158,7 @@ class ROOTResidualDataset(Dataset):
             return torch.tensor(x_recon, dtype=torch.float32), torch.tensor(res, dtype=torch.float32)
 
 
+
 # === Helper to Create DataLoader ===
 def get_dataloader(branch, varnames, hist=False, full_sample_mode=False, batch_size=256, shuffle=True, range=None):
     real_pairs = create_file_pairs("real")
@@ -167,3 +168,34 @@ def get_dataloader(branch, varnames, hist=False, full_sample_mode=False, batch_s
     dataset = ROOTResidualDataset(all_pairs, branch=branch, varnames=varnames, histogram_mode=hist, full_sample_mode=full_sample_mode, range=range)
     return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
 
+
+def float_to_bitarray(x: np.ndarray) -> np.ndarray:
+    """Convert float32 array into (n, 32) binary array."""
+    # ensure float32 dtype
+    x = x.astype(np.float32)
+    # view as uint32, then bytes
+    as_uint = x.view(np.uint32)
+    # unpack to bits
+    bits = np.unpackbits(as_uint.view(np.uint8)).reshape(-1, 32)
+    return bits
+
+class ROOTBitstreamDataset(ROOTResidualDataset):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def __getitem__(self, idx):
+        item = self.samples[idx]
+        n = len(self.varnames)
+
+        # compressed & residual
+        x_comp, res = item[:n], item[n:]
+        x_orig = x_comp + res
+
+        # convert to bit arrays
+        comp_bits = float_to_bitarray(x_comp)
+        orig_bits = float_to_bitarray(x_orig)
+
+        return (
+            torch.tensor(comp_bits, dtype=torch.int32),
+            torch.tensor(orig_bits, dtype=torch.int32),
+        )
