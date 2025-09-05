@@ -5,9 +5,7 @@
 
 * IEEE 754 single-precision floats are represented as:
 
-  $$
-  \text{Value} = (-1)^S \times 1.F \times 2^{E - 127}
-  $$
+  $\text{Value} = (-1)^S \times 1.F \times 2^{E - 127}$
 
   where:
 
@@ -27,21 +25,15 @@
 
 * Define residual:
 
-  $$
-  r = x - \tilde{x}
-  $$
+  $r = x - \tilde{x}$
 
 * If discarded bits are all zero:
 
-  $$
-  x = \tilde{x}, \quad r = 0
-  $$
+  $x = \tilde{x}, \quad r = 0$
 
 * If discarded bits are non-zero:
 
-  $$
-  x > \tilde{x}, \quad r > 0
-  $$
+  $x > \tilde{x}, \quad r > 0$
 
 * **Truncation always rounds toward zero**:
 
@@ -85,21 +77,15 @@ Let:
 
 Consider a floating-point number:
 
-$$
-x = m_x \cdot 2^e, \quad m_x \in [1,2), \; e \in \mathbb{Z}
-$$
+$x = m_x \cdot 2^e, \quad m_x \in [1,2), \; e \in \mathbb{Z}$
 
 * Mantissa stored with only $m$ bits:
 
-  $$
-  \hat{x} = \tilde{m}_x \cdot 2^e, \quad \tilde{m}_x = \text{Trunc}_m(m_x)
-  $$
+  $\hat{x} = \tilde{m}_x \cdot 2^e, \quad \tilde{m}_x = \text{Trunc}_m(m_x)$
 
 * Residual:
 
-  $$
-  \Delta = \hat{x} - x = (\tilde{m}_x - m_x) \cdot 2^e
-  $$
+  $\Delta = \hat{x} - x = (\tilde{m}_x - m_x) \cdot 2^e$
 
 ---
 
@@ -107,33 +93,23 @@ $$
 
 * Max difference between mantissas:
 
-  $$
-  |\tilde{m}_x - m_x| < 2^{-m}
-  $$
+  $|\tilde{m}_x - m_x| < 2^{-m}$
 
   hence:
 
-  $$
-  |\Delta| < 2^{e - m}
-  $$
+  $|\Delta| < 2^{e - m}$
 
 * Taking log base 10:
 
-  $$
-  \log_{10} |\Delta| < (e - m)\log_{10}(2)
-  $$
+  $\log_{10} |\Delta| < (e - m)\log_{10}(2)$
 
 * Approximate log of true value:
 
-  $$
-  \log_{10}|x| \approx e \log_{10}(2) \quad \implies \quad e \approx \frac{\log_{10}|x|}{\log_{10}(2)}
-  $$
+  $\log_{10}|x| \approx e \log_{10}(2) \quad \implies \quad e \approx \frac{\log_{10}|x|}{\log_{10}(2)}$
 
 * Substitution:
 
-  $$
-  \log_{10}|\Delta| < \log_{10}|x| - m \log_{10}(2)
-  $$
+  $\log_{10}|\Delta| < \log_{10}|x| - m \log_{10}(2)$
 
 ---
 
@@ -141,24 +117,18 @@ $$
 
 * General bound:
 
-  $$
-  \log_{10}|\Delta| \leq \log_{10}|x| - m \log_{10}(2)
-  $$
+  $\log_{10}|\Delta| \leq \log_{10}|x| - m \log_{10}(2)$
 
 * If truncation always rounds down ($\Delta < 0$):
 
-  $$
-  \log_{10}\Delta = -\log_{10}|x| + m\log_{10}(2)
-  $$
+  $\log_{10}\Delta = -\log_{10}|x| + m\log_{10}(2)$
 
 * **Final symmetric bounds**:
 
-  $$
-  \log_{10} |\Delta|_{\text{signed}} \in 
+  $\log_{10} |\Delta|_{\text{signed}} \in 
   \left[
   -\log_{10}|x| + m\log_{10}(2), \;\; \log_{10}|x| - m\log_{10}(2)
-  \right]
-  $$
+  \right]$
 
 ---
 
