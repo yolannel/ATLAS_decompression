@@ -3,11 +3,14 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.ndimage import gaussian_filter1d
-import numpy as np
-import matplotlib.pyplot as plt
 from scipy.signal import find_peaks
 import awkward as ak
 from pathlib import Path
+
+def ensure_dir(path):
+    """Create directory if it does not exist."""
+    Path(path).mkdir(parents=True, exist_ok=True)
+
 
 def load_and_preprocess_data(tree_orig, tree_comp, variables, branch_prefix):
     """Load and preprocess data from ROOT trees."""
@@ -92,9 +95,12 @@ def plot_histogram(data, varnames=(), log=True, n_bins=100, save_path=None):
     plt.grid(True, which='both', linestyle='--', linewidth=0.5)
     plt.tight_layout()
     if save_path is not None:
-        plt.savefig(Path(save_path) / "histogram_output.png")
-        print(f"Histogram saved to {Path(save_path) / 'histogram_output.png'}")
-        plt.close()
+    ensure_dir(save_path)
+    output = Path(save_path) / "histogram_output.png"
+    plt.savefig(output)
+    print(f"Histogram saved to {output}")
+    plt.close()
+
     else:
         plt.show()
 
@@ -132,9 +138,12 @@ def plot_absolute_differences(abs_diffs, variables, colors, save_path=None):
     plt.grid(True, which='both', linestyle='--', linewidth=0.5)
     plt.tight_layout()
     if save_path is not None:
-        plt.savefig(Path(save_path) / "absolute_differences.png")
-        print(f"Absolute differences plot saved to {Path(save_path) / 'absolute_differences.png'}")
-        plt.close()
+    ensure_dir(save_path)
+    output = Path(save_path) / "absolute_differences.png"
+    plt.savefig(output)
+    print(f"Absolute differences plot saved to {output}")
+    plt.close()
+
     else:
         plt.show()
     return log_peak_positions
@@ -194,9 +203,12 @@ def plot_signed_differences_hist(signed_diffs, variables, colors, thr=1e-5, save
     plt.legend()
     plt.tight_layout()
     if save_path is not None:
-        plt.savefig(Path(save_path) / "signed_differences_hist.png")
-        print(f"Signed differences histogram saved to {Path(save_path) / 'signed_differences_hist.png'}")
-        plt.close()
+    ensure_dir(save_path)
+    output = Path(save_path) / "signed_differences_hist.png"
+    plt.savefig(output)
+    print(f"Signed differences histogram saved to {output}")
+    plt.close()
+
     else:
         plt.show()
 
