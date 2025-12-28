@@ -17,6 +17,12 @@ import torch
 #     "/cvmfs/atlas-nightlies.cern.ch/repo/data/data-art/ASG/DAOD_PHYSLITE/p6490/mc20_13TeV.410470.PhPy8EG_A14_ttbar_hdamp258p75_nonallhad.deriv.DAOD_PHYSLITE.e6337_s3681_r13167_r13146_p6490/DAOD_PHYSLITE.41651753._000007.pool.root.1",
 #     "/cvmfs/atlas-nightlies.cern.ch/repo/data/data-art/ASG/DAOD_PHYSLITE/p6491/mc23_13p6TeV.601229.PhPy8EG_A14_ttbar_hdamp258p75_SingleLep.deriv.DAOD_PHYSLITE.e8514_e8528_s4162_s4114_r15540_r15516_p6491/DAOD_PHYSLITE.41633384._000941.pool.root.1"
 # ]
+def delta_r(eta1, phi1, eta2, phi2):
+    dphi = np.abs(phi1 - phi2)
+    dphi = np.where(dphi > np.pi, 2*np.pi - dphi, dphi)
+    deta = eta1 - eta2
+    return np.sqrt(deta**2 + dphi**2)
+
 BASE_COMPRESSED_REAL = "~/data/ATLAS/compressed_files/real"
 BASE_COMPRESSED_SIM = "~/data/ATLAS/compressed_files/sim"
 UNCOMPRESSED_REAL = [
@@ -87,18 +93,49 @@ class ROOTResidualDataset(Dataset):
             print(f"Failed to open {orig_path} or {comp_path}: {e}")
             return None
 
-        all_true, all_recon = [], []
-        for var in self.varnames:
-            full_name = f"{self.branch}.{var}"
-            x_true = ak.flatten(tree_orig[full_name].array()).to_numpy()
-            x_recon = ak.flatten(tree_comp[full_name].array()).to_numpy()
+        # Read full electron collections (event-wise)
+pt_true  = tree_orig[f"{self.branch}.pt"].array()
+eta_true = tree_orig[f"{self.branch}.eta"].array()
+phi_true = tree_orig[f"{self.branch}.phi"].array()
 
-            mask = (np.abs(x_true) > 0) & np.isfinite(x_true) & np.isfinite(x_recon)
-            all_true.append(x_true[mask])
-            all_recon.append(x_recon[mask])
+pt_reco  = tree_comp[f"{self.branch}.pt"].array()
+eta_reco = tree_comp[f"{self.branch}.eta"].array()
+phi_reco = tree_comp[f"{self.branch}.phi"].array()
 
-        x_true_all = np.stack(all_true, axis=-1)
-        x_recon_all = np.stack(all_recon, axis=-1)
+matched_true = []
+matched_reco = []
+
+for evt in range(len(pt_reco)):
+    if len(pt_reco[evt]) == 0 or len(pt_true[evt]) == 0:
+        continue
+
+    for i in range(len(pt_reco[evt])):
+        drs = delta_r(
+            eta_reco[evt][i],
+            phi_reco[evt][i],
+            eta_true[evt],
+            phi_true[evt]
+        )
+
+        j = np.argmin(drs)
+        if drs[j] < 0.1:
+            matched_reco.append([
+                pt_reco[evt][i],
+                eta_reco[evt][i],
+                phi_reco[evt][i]
+            ])
+            matched_true.append([
+                pt_true[evt][j],
+                eta_true[evt][j],
+                phi_true[evt][j]
+            ])
+
+if len(matched_reco) == 0:
+    return None
+
+x_recon_all = np.array(matched_reco)
+x_true_all  = np.array(matched_true)
+
 
         if self.histogram_mode:
             # log-spaced histogram bins
