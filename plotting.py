@@ -324,3 +324,12 @@ def plot_log_residual_contour(x_true, x_recon, theoretical=True, varname="pt", m
         plt.close()
     else:
         plt.show()
+def plot_metric_vs_compression(results, ylabel="Metric"):
+    levels = list(results.keys())
+    values = list(results.values())
+
+    plt.plot(levels, values, marker="o")
+    plt.xlabel("Compression level")
+    plt.ylabel(ylabel)
+    plt.title("Metric vs Compression Level")
+    plt.grid(True)

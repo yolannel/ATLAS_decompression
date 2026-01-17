@@ -29,9 +29,19 @@ UNCOMPRESSED_SIM = [
 ]
 
 
-def make_compressed_path(original_path, category, level_tag="dl10"):
+def make_compressed_path(original_path, category, level_tag):
+    """
+    Construct path to compressed ROOT file for a given compression level.
+    """
     base = BASE_COMPRESSED_REAL if category == "real" else BASE_COMPRESSED_SIM
     filename = os.path.basename(original_path)
+
+    if filename.endswith(".1"):
+        filename = filename[:-2]
+
+    compressed_filename = f"{filename}_{level_tag}_compressed.root"
+    return os.path.join(base, compressed_filename)
+
 
     # Strip final `.1` if present
     if filename.endswith(".1"):
@@ -40,13 +50,19 @@ def make_compressed_path(original_path, category, level_tag="dl10"):
     compressed_filename = f"{filename}_{level_tag}_compressed.root"
     return os.path.join(base, compressed_filename)
 
-def create_file_pairs(data_category):
+def create_file_pairs(data_category, level_tag):
+    """
+    Create (original, compressed) file pairs for a given compression level.
+    """
     uncompressed_files = UNCOMPRESSED_REAL if data_category == "real" else UNCOMPRESSED_SIM
     pairs = []
+
     for path in uncompressed_files:
-        comp = make_compressed_path(path, data_category.lower())
+        comp = make_compressed_path(path, data_category, level_tag)
         pairs.append((path, comp, data_category))
+
     return pairs
+
 
 # === Torch Dataset ===
 class ROOTResidualDataset(Dataset):
@@ -199,3 +215,34 @@ class ROOTBitstreamDataset(ROOTResidualDataset):
             torch.tensor(comp_bits, dtype=torch.int32),
             torch.tensor(orig_bits, dtype=torch.int32),
         )
+def analyze_across_compression_levels(level_tags, branch, varnames):
+    """
+    Run a simple residual analysis across multiple compression levels.
+
+    Returns
+    -------
+    dict : {level_tag: metric_value}
+    """
+    results = {}
+
+    for level in level_tags:
+        pairs = create_file_pairs("real", level) + create_file_pairs("sim", level)
+
+        try:
+            dataset = ROOTResidualDataset(
+                pairs,
+                branch=branch,
+                varnames=varnames,
+                histogram_mode=False
+            )
+
+            # simple metric: mean absolute residual
+            residuals = dataset.samples[:, len(varnames):]
+            metric = np.mean(np.abs(residuals))
+            results[level] = metric
+
+        except Exception as e:
+            logger.warning(f"Skipping level {level}: {e}")
+            results[level] = None
+
+    return results
