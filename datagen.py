@@ -5,6 +5,10 @@ import awkward as ak
 from torch.utils.data import Dataset, DataLoader
 import torch
 
+import logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 # === Config paths ===
 # BASE_COMPRESSED_REAL = "/eos/user/y/yolanney/compressed_files/real"
 # BASE_COMPRESSED_SIM  = "/eos/user/y/yolanney/compressed_files/sim"
@@ -17,16 +21,12 @@ import torch
 #     "/cvmfs/atlas-nightlies.cern.ch/repo/data/data-art/ASG/DAOD_PHYSLITE/p6490/mc20_13TeV.410470.PhPy8EG_A14_ttbar_hdamp258p75_nonallhad.deriv.DAOD_PHYSLITE.e6337_s3681_r13167_r13146_p6490/DAOD_PHYSLITE.41651753._000007.pool.root.1",
 #     "/cvmfs/atlas-nightlies.cern.ch/repo/data/data-art/ASG/DAOD_PHYSLITE/p6491/mc23_13p6TeV.601229.PhPy8EG_A14_ttbar_hdamp258p75_SingleLep.deriv.DAOD_PHYSLITE.e8514_e8528_s4162_s4114_r15540_r15516_p6491/DAOD_PHYSLITE.41633384._000941.pool.root.1"
 # ]
-BASE_COMPRESSED_REAL = "~/data/ATLAS/compressed_files/real"
-BASE_COMPRESSED_SIM = "~/data/ATLAS/compressed_files/sim"
-UNCOMPRESSED_REAL = [
-    "~/data/ATLAS/original_files/real/DAOD_PHYSLITE.41578717._000256.pool.root.1",
-    "~/data/ATLAS/original_files/real/DAOD_PHYSLITE.41588921._000002.pool.root.1"
-    ]
-UNCOMPRESSED_SIM = [
-    "~/data/ATLAS/original_files/sim/DAOD_PHYSLITE.41633384._000941.pool.root.1",
-    "~/data/ATLAS/original_files/sim/DAOD_PHYSLITE.41651753._000007.pool.root.1"
-]
+BASE_COMPRESSED_REAL = os.path.expanduser(BASE_COMPRESSED_REAL)
+BASE_COMPRESSED_SIM  = os.path.expanduser(BASE_COMPRESSED_SIM)
+
+UNCOMPRESSED_REAL = [os.path.expanduser(p) for p in UNCOMPRESSED_REAL]
+UNCOMPRESSED_SIM  = [os.path.expanduser(p) for p in UNCOMPRESSED_SIM]
+
 
 
 def make_compressed_path(original_path, category, level_tag="dl10"):
@@ -83,9 +83,13 @@ class ROOTResidualDataset(Dataset):
         try:
             tree_orig = uproot.open({orig_path: "CollectionTree"})
             tree_comp = uproot.open({comp_path: "CollectionTree"})
-        except Exception as e:
-            print(f"Failed to open {orig_path} or {comp_path}: {e}")
-            return None
+        except FileNotFoundError as e:
+           logger.error(f"File not found: {e}")
+           return None
+        except OSError as e:
+           logger.error(f"ROOT I/O error: {e}")
+           return None
+
 
         all_true, all_recon = [], []
         for var in self.varnames:
