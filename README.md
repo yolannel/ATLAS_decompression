@@ -21,6 +21,23 @@ The ATLAS presentation pdf file steps through key results found from data explor
 
 Ongoing work can be seen in the .py files which have translated successful parts of the notebook explorations into python scripts for further testing, detailed further below.
 
+## 📉 Analysis as a Function of Compression Level
+
+Compression strength is a continuous parameter rather than a binary choice.
+To better understand how floating-point compression impacts downstream
+analysis, the codebase is being extended to support **systematic evaluation
+across multiple compression levels** (e.g. varying mantissa truncation or
+compression tags such as `dl6`, `dl8`, `dl10`).
+
+Rather than focusing on a single operating point, this enables:
+- studying how residual distributions evolve with compression strength
+- identifying regimes where deterministic quantisation dominates
+- determining where neural or hybrid correction methods become beneficial
+
+This infrastructure-oriented analysis is intended to support future physics-
+level studies and model comparisons, rather than to draw final conclusions.
+
+
 ## 📂 Notebook Overview
 
 The notebooks are organized into three main stages:
