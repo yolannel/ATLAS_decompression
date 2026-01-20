@@ -5,9 +5,10 @@ from torch.utils.data import TensorDataset, DataLoader
 
 import numpy as np
 import matplotlib.pyplot as plt
-from datagen import get_dataloader, create_file_pairs
-from plotting import plot_log_residual_contour, plot_histogram
-from models import Autoencoder1D, ConvAutoencoder1D
+from src.compression.datagen import get_dataloader, create_file_pairs
+from src.utils.plotting import plot_log_residual_contour, plot_histogram
+from src.decompression.models import Autoencoder1D, ConvAutoencoder1D
+
 import os
 from pathlib import Path
 from tqdm import tqdm

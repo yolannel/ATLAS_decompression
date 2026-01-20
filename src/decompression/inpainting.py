@@ -23,7 +23,8 @@ import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 import matplotlib.pyplot as plt
 
-from datagen import ROOTBitstreamDataset, create_file_pairs
+from src.compression.datagen import ROOTBitstreamDataset, create_file_pairs
+
 # ------------------------
 # Helpers: float <-> bits
 # ------------------------
