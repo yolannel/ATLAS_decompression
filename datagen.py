@@ -27,16 +27,41 @@ ready inputs and targets.
 #     "/cvmfs/atlas-nightlies.cern.ch/repo/data/data-art/ASG/DAOD_PHYSLITE/p6490/mc20_13TeV.410470.PhPy8EG_A14_ttbar_hdamp258p75_nonallhad.deriv.DAOD_PHYSLITE.e6337_s3681_r13167_r13146_p6490/DAOD_PHYSLITE.41651753._000007.pool.root.1",
 #     "/cvmfs/atlas-nightlies.cern.ch/repo/data/data-art/ASG/DAOD_PHYSLITE/p6491/mc23_13p6TeV.601229.PhPy8EG_A14_ttbar_hdamp258p75_SingleLep.deriv.DAOD_PHYSLITE.e8514_e8528_s4162_s4114_r15540_r15516_p6491/DAOD_PHYSLITE.41633384._000941.pool.root.1"
 # ]
-BASE_COMPRESSED_REAL = "~/data/ATLAS/compressed_files/real"
-BASE_COMPRESSED_SIM = "~/data/ATLAS/compressed_files/sim"
-UNCOMPRESSED_REAL = [
-    "~/data/ATLAS/original_files/real/DAOD_PHYSLITE.41578717._000256.pool.root.1",
-    "~/data/ATLAS/original_files/real/DAOD_PHYSLITE.41588921._000002.pool.root.1"
-    ]
-UNCOMPRESSED_SIM = [
-    "~/data/ATLAS/original_files/sim/DAOD_PHYSLITE.41633384._000941.pool.root.1",
-    "~/data/ATLAS/original_files/sim/DAOD_PHYSLITE.41651753._000007.pool.root.1"
+BASE_COMPRESSED_REAL = os.path.expanduser(
+    os.getenv("ATLAS_COMPRESSED_REAL", "~/data/ATLAS/compressed_files/real")
+)
+BASE_COMPRESSED_SIM = os.path.expanduser(
+    os.getenv("ATLAS_COMPRESSED_SIM", "~/data/ATLAS/compressed_files/sim")
+)
+
+ATLAS_UNCOMPRESSED_REAL = os.path.expanduser(
+    os.getenv("ATLAS_UNCOMPRESSED_REAL", "~/data/ATLAS/original_files/real")
+)
+
+ATLAS_UNCOMPRESSED_SIM = os.path.expanduser(
+    os.getenv("ATLAS_UNCOMPRESSED_SIM", "~/data/ATLAS/original_files/sim")
+)
+
+UNCOMPRESSED_REAL_FILES = [
+    "DAOD_PHYSLITE.41578717._000256.pool.root.1",
+    "DAOD_PHYSLITE.41588921._000002.pool.root.1",
 ]
+
+UNCOMPRESSED_SIM_FILES = [
+    "DAOD_PHYSLITE.41633384._000941.pool.root.1",
+    "DAOD_PHYSLITE.41651753._000007.pool.root.1",
+]
+
+UNCOMPRESSED_REAL = [
+    os.path.join(ATLAS_UNCOMPRESSED_REAL, fname)
+    for fname in UNCOMPRESSED_REAL_FILES
+]
+
+UNCOMPRESSED_SIM = [
+    os.path.join(ATLAS_UNCOMPRESSED_SIM, fname)
+    for fname in UNCOMPRESSED_SIM_FILES
+]
+
 
 
 def make_compressed_path(original_path, category, level_tag="dl10"):
@@ -136,6 +161,18 @@ class ROOTResidualDataset(Dataset):
                 [compressed histogram | histogram residual]
                 - None if files cannot be opened
         """
+        if not os.path.exists(orig_path):
+            raise FileNotFoundError(
+            f"Uncompressed ROOT file not found: {orig_path}. "
+            "Please check ATLAS_UNCOMPRESSED_REAL."
+            )
+
+        if not os.path.exists(comp_path):
+            raise FileNotFoundError(
+                f"Compressed ROOT file not found: {comp_path}. "
+                "Please check ATLAS_COMPRESSED_REAL / SIM."
+            )
+
 
         try:
             tree_orig = uproot.open({orig_path: "CollectionTree"})
