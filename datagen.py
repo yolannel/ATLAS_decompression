@@ -5,6 +5,16 @@ import awkward as ak
 from torch.utils.data import Dataset, DataLoader
 import torch
 
+"""
+Datasets and data-loading utilities for learning floating-point
+residual corrections from lossy-compressed ATLAS PHYSLITE ROOT data.
+
+This module defines PyTorch Dataset classes that transform matched
+pairs of original and compressed ROOT files into machine-learning-
+ready inputs and targets.
+"""
+
+
 # === Config paths ===
 # BASE_COMPRESSED_REAL = "/eos/user/y/yolanney/compressed_files/real"
 # BASE_COMPRESSED_SIM  = "/eos/user/y/yolanney/compressed_files/sim"
@@ -17,16 +27,41 @@ import torch
 #     "/cvmfs/atlas-nightlies.cern.ch/repo/data/data-art/ASG/DAOD_PHYSLITE/p6490/mc20_13TeV.410470.PhPy8EG_A14_ttbar_hdamp258p75_nonallhad.deriv.DAOD_PHYSLITE.e6337_s3681_r13167_r13146_p6490/DAOD_PHYSLITE.41651753._000007.pool.root.1",
 #     "/cvmfs/atlas-nightlies.cern.ch/repo/data/data-art/ASG/DAOD_PHYSLITE/p6491/mc23_13p6TeV.601229.PhPy8EG_A14_ttbar_hdamp258p75_SingleLep.deriv.DAOD_PHYSLITE.e8514_e8528_s4162_s4114_r15540_r15516_p6491/DAOD_PHYSLITE.41633384._000941.pool.root.1"
 # ]
-BASE_COMPRESSED_REAL = "~/data/ATLAS/compressed_files/real"
-BASE_COMPRESSED_SIM = "~/data/ATLAS/compressed_files/sim"
-UNCOMPRESSED_REAL = [
-    "~/data/ATLAS/original_files/real/DAOD_PHYSLITE.41578717._000256.pool.root.1",
-    "~/data/ATLAS/original_files/real/DAOD_PHYSLITE.41588921._000002.pool.root.1"
-    ]
-UNCOMPRESSED_SIM = [
-    "~/data/ATLAS/original_files/sim/DAOD_PHYSLITE.41633384._000941.pool.root.1",
-    "~/data/ATLAS/original_files/sim/DAOD_PHYSLITE.41651753._000007.pool.root.1"
+BASE_COMPRESSED_REAL = os.path.expanduser(
+    os.getenv("ATLAS_COMPRESSED_REAL", "~/data/ATLAS/compressed_files/real")
+)
+BASE_COMPRESSED_SIM = os.path.expanduser(
+    os.getenv("ATLAS_COMPRESSED_SIM", "~/data/ATLAS/compressed_files/sim")
+)
+
+ATLAS_UNCOMPRESSED_REAL = os.path.expanduser(
+    os.getenv("ATLAS_UNCOMPRESSED_REAL", "~/data/ATLAS/original_files/real")
+)
+
+ATLAS_UNCOMPRESSED_SIM = os.path.expanduser(
+    os.getenv("ATLAS_UNCOMPRESSED_SIM", "~/data/ATLAS/original_files/sim")
+)
+
+UNCOMPRESSED_REAL_FILES = [
+    "DAOD_PHYSLITE.41578717._000256.pool.root.1",
+    "DAOD_PHYSLITE.41588921._000002.pool.root.1",
 ]
+
+UNCOMPRESSED_SIM_FILES = [
+    "DAOD_PHYSLITE.41633384._000941.pool.root.1",
+    "DAOD_PHYSLITE.41651753._000007.pool.root.1",
+]
+
+UNCOMPRESSED_REAL = [
+    os.path.join(ATLAS_UNCOMPRESSED_REAL, fname)
+    for fname in UNCOMPRESSED_REAL_FILES
+]
+
+UNCOMPRESSED_SIM = [
+    os.path.join(ATLAS_UNCOMPRESSED_SIM, fname)
+    for fname in UNCOMPRESSED_SIM_FILES
+]
+
 
 
 def make_compressed_path(original_path, category, level_tag="dl10"):
@@ -50,6 +85,29 @@ def create_file_pairs(data_category):
 
 # === Torch Dataset ===
 class ROOTResidualDataset(Dataset):
+
+    """
+    PyTorch Dataset for learning floating-point residual corrections
+    from lossy-compressed ATLAS PHYSLITE ROOT data.
+
+    Each sample is constructed from a matched pair of:
+    - original (uncompressed) physics values
+    - compressed (lossy) physics values
+
+    The dataset returns:
+    - input: compressed floating-point values
+    - target: residuals (original - compressed)
+
+    Learning residuals instead of absolute values stabilizes
+    training and preserves the statistical structure of
+    underlying physics distributions.
+
+    Supported modes:
+    - Eventwise mode (default): one physics object per sample
+    - Full sample mode: all events from one ROOT file per sample
+    - Histogram mode: distribution-level residual learning
+    """
+
     def __init__(self, file_pairs, branch, varnames, 
                  histogram_mode=False, bins=1000, range=None, full_sample_mode=False):
         """
@@ -80,6 +138,42 @@ class ROOTResidualDataset(Dataset):
             self.samples = np.concatenate(self.samples, axis=0)
 
     def _load_pair(self, orig_path, comp_path):
+        """
+        Load a matched pair of original and compressed ROOT files and
+        convert them into machine-learning-ready numerical arrays.
+
+        This function:
+        - Opens synchronized ROOT trees from uncompressed and compressed files
+        - Extracts selected physics variables
+        - Applies basic validity masking
+        - Computes residuals (original - compressed)
+        - Returns either event-level or distribution-level samples
+
+        Args:
+            orig_path (str): Path to the uncompressed ROOT file
+            comp_path (str): Path to the compressed ROOT file
+
+        Returns:
+            np.ndarray or None:
+                - Event / full-sample mode: concatenated array of
+                [compressed values | residuals]
+                - Histogram mode: concatenated array of
+                [compressed histogram | histogram residual]
+                - None if files cannot be opened
+        """
+        if not os.path.exists(orig_path):
+            raise FileNotFoundError(
+            f"Uncompressed ROOT file not found: {orig_path}. "
+            "Please check ATLAS_UNCOMPRESSED_REAL."
+            )
+
+        if not os.path.exists(comp_path):
+            raise FileNotFoundError(
+                f"Compressed ROOT file not found: {comp_path}. "
+                "Please check ATLAS_COMPRESSED_REAL / SIM."
+            )
+
+
         try:
             tree_orig = uproot.open({orig_path: "CollectionTree"})
             tree_comp = uproot.open({comp_path: "CollectionTree"})
@@ -93,12 +187,28 @@ class ROOTResidualDataset(Dataset):
             x_true = ak.flatten(tree_orig[full_name].array()).to_numpy()
             x_recon = ak.flatten(tree_comp[full_name].array()).to_numpy()
 
+            if len(x_true) != len(x_recon):
+                raise ValueError(
+                    f"Length mismatch for {full_name}: "
+                    f"{len(x_true)} (original) vs {len(x_recon)} (compressed)"
+                )
+
             mask = (np.abs(x_true) > 0) & np.isfinite(x_true) & np.isfinite(x_recon)
+            if np.count_nonzero(mask) == 0:
+                raise ValueError(
+                    f"All values masked for variable {full_name} "
+                    "Check data validity or masking criteria"
+                )
+
             all_true.append(x_true[mask])
             all_recon.append(x_recon[mask])
 
         x_true_all = np.stack(all_true, axis=-1)
         x_recon_all = np.stack(all_recon, axis=-1)
+
+        if (not np.all (np.isfinite(x_true_all))) or (not np.all(np.isfinite(x_recon_all))):
+            raise ValueError("Non-finite values detected after masking")
+
 
         if self.histogram_mode:
             # log-spaced histogram bins
@@ -161,6 +271,13 @@ class ROOTResidualDataset(Dataset):
 
 # === Helper to Create DataLoader ===
 def get_dataloader(branch, varnames, hist=False, full_sample_mode=False, batch_size=256, shuffle=True, range=None):
+    """
+    Convenience helper to construct a DataLoader for the residual dataset.
+
+    Combines real and simulated file pairs and returns a PyTorch
+    DataLoader with the requested sampling mode.
+    """
+
     real_pairs = create_file_pairs("real")
     sim_pairs  = create_file_pairs("sim")
     all_pairs = real_pairs + sim_pairs
