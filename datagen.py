@@ -128,6 +128,22 @@ class ROOTResidualDataset(Dataset):
 
         else:
             residual = x_true_all - x_recon_all
+            # --- Residual reconstruction consistency check ---
+            reconstructed = x_recon_all + residual
+            if not np.allclose(
+                reconstructed,
+                x_true_all,
+                rtol = 1e-6,
+                atol = 1e-8
+            ):
+                raise ValueError(
+                    "Residual consistency check failed: "
+                    "compressed + residual does not reconstruct original values."
+                )
+            res_mean = np.mean(residual)
+            res_std = np.std(residual)
+            if not np.isfinite(res_mean) or not np.isfinite(res_std):
+                raise ValueError("Residual statistic are non-finite")
             return np.concatenate([x_recon_all, residual], axis=1)
 
     def __len__(self):
@@ -167,6 +183,11 @@ def get_dataloader(branch, varnames, hist=False, full_sample_mode=False, batch_s
 
     dataset = ROOTResidualDataset(all_pairs, branch=branch, varnames=varnames, histogram_mode=hist, full_sample_mode=full_sample_mode, range=range)
     return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
+
+def evaluate_residual_reconstruction(x_recon,residual,x_true,atol=1e-6):
+    recon = x_recon + residual
+    abs_err = np.abs(recon - x_true)
+    return np.max(abs_err),np.mean(abs_err)
 
 
 def float_to_bitarray(x: np.ndarray) -> np.ndarray:
