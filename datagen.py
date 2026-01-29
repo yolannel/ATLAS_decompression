@@ -93,9 +93,21 @@ class ROOTResidualDataset(Dataset):
             x_true = ak.flatten(tree_orig[full_name].array()).to_numpy()
             x_recon = ak.flatten(tree_comp[full_name].array()).to_numpy()
 
-            mask = (np.abs(x_true) > 0) & np.isfinite(x_true) & np.isfinite(x_recon)
+            finite_mask = np.isfinite(x_true) & np.isfinite(x_recon)
+            nonzero_mask = np.abs(x_true)>0
+            finite_vals = np.abs(x_true[finite_mask])
+            if finite_vals.size == 0:
+                continue
+            upper_bound = np.percentile(np.abs(x_true[finite_mask]),99.9)
+            range_mask = np.abs(x_true)<upper_bound
+            mask = finite_mask&nonzero_mask&range_mask
+            
             all_true.append(x_true[mask])
             all_recon.append(x_recon[mask])
+        
+        if len(all_true) == 0:
+            return None
+
 
         x_true_all = np.stack(all_true, axis=-1)
         x_recon_all = np.stack(all_recon, axis=-1)
@@ -128,6 +140,28 @@ class ROOTResidualDataset(Dataset):
 
         else:
             residual = x_true_all - x_recon_all
+
+            clip_val = np.percentile(np.abs(residual), 99.9)
+            residual = np.clip(residual, -clip_val, clip_val)
+
+            # --- Residual reconstruction consistency check ---
+            reconstructed = x_recon_all + residual
+
+            abs_err = np.abs(reconstructed - x_true_all)
+            if not np.allclose(
+                reconstructed,
+                x_true_all,
+                rtol = 1e-6,
+                atol = 1e-8
+            ):
+                max_err = np.max(abs_err)
+                raise ValueError(
+                    f"Residual reconstruction failed: max |error| = {max_err:.3e}"
+                )
+            res_mean = np.mean(residual)
+            res_std = np.std(residual)
+            if not np.isfinite(res_mean) or not np.isfinite(res_std):
+                raise ValueError("Residual statistic are non-finite")
             return np.concatenate([x_recon_all, residual], axis=1)
 
     def __len__(self):
@@ -167,6 +201,11 @@ def get_dataloader(branch, varnames, hist=False, full_sample_mode=False, batch_s
 
     dataset = ROOTResidualDataset(all_pairs, branch=branch, varnames=varnames, histogram_mode=hist, full_sample_mode=full_sample_mode, range=range)
     return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
+
+def evaluate_residual_reconstruction(x_recon,residual,x_true,atol=1e-6):
+    recon = x_recon + residual
+    abs_err = np.abs(recon - x_true)
+    return np.max(abs_err),np.mean(abs_err)
 
 
 def float_to_bitarray(x: np.ndarray) -> np.ndarray:
